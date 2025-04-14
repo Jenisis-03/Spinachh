@@ -1,0 +1,77 @@
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #213547;
+  background-color: #f8f8f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #f0f0f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  border-color: #4CAF50;
+  background-color: #e8f5e9;
+}
+
+/* Leaflet specific styles */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* Ensure Leaflet controls appear above other elements */
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 1000;
+}
+
+/* Heatmap canvas styling */
+.heatmap-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0.5rem;
+  }
+  
+  header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .controls-container {
+    flex-direction: column;
+  }
+}
