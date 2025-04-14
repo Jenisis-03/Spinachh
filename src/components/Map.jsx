@@ -249,11 +249,11 @@ const StressOverview = React.memo(({ stressData }) => {
  * Main Map Component
  * Manages the overall map state and data processing
  */
-const Map = () => {
+const Map = ({ stressData: propStressData }) => {
   // State management for map and data
   const [map, setMap] = useState(null);
   const [mapBounds, setMapBounds] = useState(null);
-  const [stressData, setStressData] = useState(null);
+  const [processedData, setProcessedData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   
@@ -263,98 +263,57 @@ const Map = () => {
   const dataProcessingRef = useRef(null);
 
   /**
-   * Loads and processes stress data from JSON file
-   * Uses Web Worker for efficient processing
+   * Process stress data using Web Worker
    */
   useEffect(() => {
-    async function loadStressData() {
-      try {
-        setIsLoading(true);
-        setLoadingProgress(0);
-
-        const response = await fetch('/sample_data/stress_sample.json');
-        if (!response.ok) throw new Error(`Failed to load stress data: ${response.statusText}`);
-
-        const geojson = await response.json();
-        if (!geojson?.features?.length) throw new Error('Invalid GeoJSON data');
-
-        console.log('Processing features:', geojson.features.length);
-
-        // Initialize Web Worker
-        workerRef.current = createWorker();
-        const points = [];
-        const chunkSize = 2000; // Increased chunk size for Web Worker
-        let processedCount = 0;
-        const totalFeatures = geojson.features.length;
-
-        // Process data in chunks using Web Worker
-        function processNextChunk() {
-          if (processedCount >= totalFeatures) {
-            finalizeData(points);
-            return;
-          }
-
-          workerRef.current.postMessage({
-            features: geojson.features,
-            chunkSize,
-            startIndex: processedCount
-          });
-        }
-
-        workerRef.current.onmessage = (e) => {
-          const { points: newPoints, endIndex, isLastChunk } = e.data;
-          points.push(...newPoints);
-          processedCount = endIndex;
-
-          // Update progress
-          const progress = Math.round((processedCount / totalFeatures) * 100);
-          setLoadingProgress(progress);
-
-          if (isLastChunk) {
-            finalizeData(points);
-          } else {
-            dataProcessingRef.current = requestAnimationFrame(processNextChunk);
-          }
-        };
-
-        processNextChunk();
-      } catch (error) {
-        console.error('Error loading stress data:', error);
-        setMapBounds(DEFAULT_BOUNDS);
-        setIsLoading(false);
-      }
+    if (!propStressData?.features?.length) {
+      setIsLoading(false);
+      return;
     }
 
-    function finalizeData(points) {
-      if (points.length === 0) {
-        console.error('No valid points found');
-        setMapBounds(DEFAULT_BOUNDS);
-        setIsLoading(false);
+    setIsLoading(true);
+    setLoadingProgress(0);
+
+    console.log('Processing features:', propStressData.features.length);
+
+    // Initialize Web Worker
+    workerRef.current = createWorker();
+    const points = [];
+    const chunkSize = 2000; // Increased chunk size for Web Worker
+    let processedCount = 0;
+    const totalFeatures = propStressData.features.length;
+
+    // Process data in chunks using Web Worker
+    function processNextChunk() {
+      if (processedCount >= totalFeatures) {
+        finalizeData(points);
         return;
       }
 
-      const validPoints = points.filter(p => !isNaN(p.lat) && !isNaN(p.lng));
-      const lats = validPoints.map(p => p.lat);
-      const lngs = validPoints.map(p => p.lng);
-
-      if (lats.length > 0 && lngs.length > 0) {
-        setMapBounds([
-          [Math.min(...lats), Math.min(...lngs)],
-          [Math.max(...lats), Math.max(...lngs)]
-        ]);
-      }
-
-      setStressData({
-        max: 1,
-        min: 0,
-        data: points,
-        gradient: HEATMAP_CONFIG.gradient
+      workerRef.current.postMessage({
+        features: propStressData.features,
+        chunkSize,
+        startIndex: processedCount
       });
-
-      setIsLoading(false);
     }
 
-    loadStressData();
+    workerRef.current.onmessage = (e) => {
+      const { points: newPoints, endIndex, isLastChunk } = e.data;
+      points.push(...newPoints);
+      processedCount = endIndex;
+
+      // Update progress
+      const progress = Math.round((processedCount / totalFeatures) * 100);
+      setLoadingProgress(progress);
+
+      if (isLastChunk) {
+        finalizeData(points);
+      } else {
+        dataProcessingRef.current = requestAnimationFrame(processNextChunk);
+      }
+    };
+
+    processNextChunk();
 
     return () => {
       if (dataProcessingRef.current) {
@@ -364,10 +323,39 @@ const Map = () => {
         workerRef.current.terminate();
       }
     };
-  }, []);
+  }, [propStressData]);
+
+  function finalizeData(points) {
+    if (points.length === 0) {
+      console.error('No valid points found');
+      setMapBounds(DEFAULT_BOUNDS);
+      setIsLoading(false);
+      return;
+    }
+
+    const validPoints = points.filter(p => !isNaN(p.lat) && !isNaN(p.lng));
+    const lats = validPoints.map(p => p.lat);
+    const lngs = validPoints.map(p => p.lng);
+
+    if (lats.length > 0 && lngs.length > 0) {
+      setMapBounds([
+        [Math.min(...lats), Math.min(...lngs)],
+        [Math.max(...lats), Math.max(...lngs)]
+      ]);
+    }
+
+    setProcessedData({
+      max: 1,
+      min: 0,
+      data: points,
+      gradient: HEATMAP_CONFIG.gradient
+    });
+
+    setIsLoading(false);
+  }
 
   // Use custom hook for stress hotspots
-  useStressHotspots(map, stressData);
+  useStressHotspots(map, processedData);
 
   // Handle map instance
   const handleMapInstance = useCallback((mapInstance) => {
@@ -406,7 +394,7 @@ const Map = () => {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             textAlign: 'center'
           }}>
-            <div>Loading stress data...</div>
+            <div>Processing stress data...</div>
             <div style={{ marginTop: '10px' }}>{loadingProgress}%</div>
           </div>
         </div>
@@ -428,14 +416,14 @@ const Map = () => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             noWrap={true}
           />
-          {map && stressData && (
+          {map && processedData && (
             <>
               <Heatmap 
-                data={stressData} 
+                data={processedData} 
                 map={map}
                 {...HEATMAP_CONFIG}
               />
-              <StressOverview stressData={stressData} />
+              <StressOverview stressData={processedData} />
             </>
           )}
         </MapContainer>

@@ -10,12 +10,41 @@ import * as GeoTIFF from 'geotiff';
  */
 export const loadGeoTiffData = async (filePath) => {
   try {
-    const response = await fetch(filePath);
+    console.log('Starting GeoTIFF fetch for:', filePath);
+    const response = await fetch(filePath, {
+      method: 'GET',
+      headers: {
+        'Accept': 'image/tiff,*/*',
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store',
+      credentials: 'omit'
+    });
+
+    if (!response.ok) {
+      console.error('GeoTIFF response error:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    console.log('GeoTIFF response received:', {
+      status: response.status,
+      type: response.type,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
     const arrayBuffer = await response.arrayBuffer();
+    console.log('GeoTIFF array buffer size:', arrayBuffer.byteLength);
+
     const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
     const image = await tiff.getImage();
     const width = image.getWidth();
     const height = image.getHeight();
+    console.log('GeoTIFF dimensions:', { width, height });
+
     const values = await image.readRasters();
     const metadata = image.getFileDirectory();
     
@@ -44,6 +73,7 @@ export const loadGeoTiffData = async (filePath) => {
       projection: 4326 // Assuming WGS84
     };
     
+    console.log('GeoTIFF processing complete');
     return {
       georaster,
       bounds: [[ymin, xmin], [ymax, xmax]]
@@ -55,15 +85,54 @@ export const loadGeoTiffData = async (filePath) => {
 };
 
 /**
- * Load stress data from GeoJSON file
- * @param {string} filePath - Path to the GeoJSON file
+ * Load stress data from JSON file
+ * @param {string} filePath - Path to the JSON file
  * @returns {Promise<Object>} - Processed stress data
  */
 export const loadStressData = async (filePath) => {
   try {
-    const response = await fetch(filePath);
-    const data = await response.json();
-    return data;
+    console.log('Starting fetch for:', filePath);
+    const response = await fetch(filePath, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store',
+      credentials: 'omit'
+    });
+
+    if (!response.ok) {
+      console.error('Response error:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    console.log('Response received:', {
+      status: response.status,
+      type: response.type,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
+    // Get the text content first
+    const textContent = await response.text();
+    console.log('Raw response text (first 100 chars):', textContent.substring(0, 100));
+    
+    try {
+      // Try to parse the text content as JSON
+      const data = JSON.parse(textContent);
+      console.log('Successfully parsed JSON data');
+      return data;
+    } catch (parseError) {
+      console.error('Parse error details:', {
+        error: parseError.message,
+        rawData: textContent.substring(0, 200) // Show first 200 chars of raw data
+      });
+      throw new Error(`Failed to parse response as JSON: ${parseError.message}`);
+    }
   } catch (error) {
     console.error('Error loading stress data:', error);
     throw error;

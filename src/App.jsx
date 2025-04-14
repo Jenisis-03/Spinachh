@@ -5,6 +5,16 @@ import StressHighlighter from './components/StressHighlighter';
 import { loadStressData } from './services/dataProcessor';
 import './App.css';
 
+// Data URLs configuration using direct Dropbox download links
+const DATA_CONFIG = {
+  urls: {
+    // Using direct download links with the correct format
+    stressSample1: 'https://dl.dropboxusercontent.com/scl/fi/wyd4lyva8j2a32tmz88xt/stress_sample.json?rlkey=k1gsltqlbpsxq9xe5bj6l3yi4&dl=1',
+    stressSample2: 'https://dl.dropboxusercontent.com/scl/fi/ydwlolj2e6ejdrgu4tu2d/stress_sample_2.json?rlkey=xihy80jprjyqpswo8b9cmaev4&dl=1',
+    tiffData: 'https://dl.dropboxusercontent.com/scl/fi/3xwie7omdavo1xz6wr2z1/sample.tif?rlkey=hrj3tmo2cj6g5d7b08un8q174&dl=1'
+  }
+};
+
 function App() {
   const [selectedGridSize, setSelectedGridSize] = useState('10x10m');
   const [stressData, setStressData] = useState(null);
@@ -16,10 +26,13 @@ function App() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const fileName = selectedGridSize === '20x20m' 
-          ? 'https://drive.google.com/uc?export=download&id=1vxhgJLAmfK7o-IfQMUKeVsZTW1RqVw7N'  // stress_sample_2.json
-          : 'https://drive.google.com/uc?export=download&id=1bSGUpQ7BH63sz9gzUGnd3xb-n2hoDwyz'; // stress_sample.json
-        const data = await loadStressData(fileName);
+        const dataUrl = selectedGridSize === '20x20m' 
+          ? DATA_CONFIG.urls.stressSample2
+          : DATA_CONFIG.urls.stressSample1;
+        
+        console.log('Fetching data from:', dataUrl); // Debug log
+        const data = await loadStressData(dataUrl);
+        console.log('Received data:', data); // Debug log
         setStressData(data);
         setLoading(false);
       } catch (err) {
@@ -49,7 +62,11 @@ function App() {
       ) : error ? (
         <div className="error">{error}</div>
       ) : (
-        <Map selectedGridSize={selectedGridSize} />
+        <Map 
+          selectedGridSize={selectedGridSize}
+          stressData={stressData}
+          tiffUrl={DATA_CONFIG.urls.tiffData}
+        />
       )}
 
       <footer>
