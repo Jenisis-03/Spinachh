@@ -16,8 +16,10 @@ function App() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const fileName = selectedGridSize === '20x20m' ? 'stress_sample_2.json' : 'stress_sample.json';
-        const data = await loadStressData(`/sample_data/${fileName}`);
+        const fileName = selectedGridSize === '20x20m' 
+          ? 'https://drive.google.com/uc?export=download&id=1vxhgJLAmfK7o-IfQMUKeVsZTW1RqVw7N'  // stress_sample_2.json
+          : 'https://drive.google.com/uc?export=download&id=1bSGUpQ7BH63sz9gzUGnd3xb-n2hoDwyz'; // stress_sample.json
+        const data = await loadStressData(fileName);
         setStressData(data);
         setLoading(false);
       } catch (err) {

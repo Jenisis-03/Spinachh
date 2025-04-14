@@ -10,7 +10,13 @@ class COGLoader {
 
   async initialize(url) {
     try {
-      const response = await fetch(url);
+      // Add headers for range requests to support COG streaming
+      const response = await fetch(url, {
+        headers: {
+          'Range': 'bytes=0-16384' // Request initial bytes for header info
+        }
+      });
+      
       if (!response.ok) {
         throw new Error(`Failed to fetch GeoTIFF: ${response.statusText}`);
       }
@@ -89,13 +95,16 @@ class COGLoader {
     const window = this.calculateWindow(bounds, optimalImage);
     
     try {
+      // Use range requests to fetch only the required tiles
       const rasters = await optimalImage.readRasters({
         window,
         width: targetWidth,
         height: targetHeight,
         interleave: true,
-        pool: false, // Disable worker pool
-        fillValue: 0 // Set default fill value for empty pixels
+        pool: false, // Disable worker pool for simpler streaming
+        fillValue: 0, // Set default fill value for empty pixels
+        enableStreamingRequest: true, // Enable streaming for COG
+        maxRequestsPerTile: 4 // Limit concurrent requests per tile
       });
 
       if (!rasters || !rasters.length) {
