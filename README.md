@@ -1,12 +1,225 @@
-# React + Vite
+# Stress Data Visualization Application 🌍
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based web application for visualizing geographical stress data using interactive heatmaps and markers. The application processes GeoJSON and Cloud-Optimized GeoTIFF (COG) data to create intuitive visualizations of stress patterns across different locations.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Interactive heatmap visualization
+- Real-time stress data processing
+- High-performance data handling with Web Workers
+- Customizable stress thresholds
+- Zoom and pan controls
+- Stress hotspot identification
+- Statistical overview panel
 
-## Expanding the ESLint configuration
+## 📊 Data Flow & Architecture
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 1. Data Loading Pipeline
+```mermaid
+graph TD
+    A[JSON/GeoTIFF Data] --> B[Web Worker]
+    B --> C[Data Processing]
+    C --> D[Batch Processing]
+    D --> E[Visualization Layer]
+```
+
+1. **Initial Data Loading**
+   - Loads GeoJSON data from `sample_data/stress_sample.json`
+   - Processes Cloud-Optimized GeoTIFF files
+   - Validates data structure and format
+
+2. **Data Processing**
+   - Web Worker handles heavy computation
+   - Chunks data for efficient processing
+   - Normalizes values to 0-255 range
+   - Filters invalid data points
+
+3. **Visualization Preparation**
+   - Converts coordinates to map points
+   - Calculates stress intensity
+   - Prepares heatmap data layer
+   - Creates marker data for hotspots
+
+### 2. Map Component Workflow
+
+```javascript
+// Key configuration
+const STRESS_THRESHOLD = 0.7;  // High stress threshold
+const GRID_CELL_SIZE = 20;     // Grid resolution in cm
+```
+
+1. **Map Initialization**
+   - Sets up Leaflet map instance
+   - Configures initial bounds and zoom
+   - Prepares layer containers
+
+2. **Heatmap Layer**
+   - Configures heatmap settings
+   - Applies color gradient
+   - Handles zoom levels
+   - Updates on data changes
+
+3. **Marker Management**
+   - Batch processes markers
+   - Implements efficient rendering
+   - Handles marker cleanup
+
+## 🛠 Technical Implementation
+
+### Performance Optimizations
+
+1. **Data Processing**
+   ```javascript
+   // Web Worker implementation
+   const worker = createWorker();
+   worker.postMessage({ chunk: dataChunk });
+   ```
+   - Offloads heavy computation
+   - Processes data in chunks
+   - Updates progress in real-time
+
+2. **Rendering Pipeline**
+   - Uses Canvas rendering
+   - Implements batch processing
+   - Optimizes marker creation
+   - Manages memory efficiently
+
+### Memory Management
+
+1. **Resource Cleanup**
+   ```javascript
+   useEffect(() => {
+     return () => {
+       // Cleanup code
+       worker?.terminate();
+       clearLayers();
+     };
+   }, []);
+   ```
+
+2. **Layer Management**
+   - Proper layer disposal
+   - Memory leak prevention
+   - Efficient data structure updates
+
+## 🎯 Key Features Explained
+
+### 1. Stress Visualization
+
+- **Color Gradient**
+  - Green (0.0): Low stress
+  - Yellow (0.4): Moderate stress
+  - Red (0.7+): High stress
+
+- **Marker System**
+  ```javascript
+  const MARKER_CONFIG = {
+    radius: 2,
+    color: '#ff4444',
+    fillOpacity: 0.6
+  };
+  ```
+
+### 2. Data Processing
+
+- **Batch Processing**
+  - 50 markers per batch
+  - Progressive loading
+  - Smooth UI updates
+
+- **Error Handling**
+  - Validates data integrity
+  - Provides fallback options
+  - Maintains app stability
+
+## 🔧 Setup and Installation
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/yourusername/stress-visualization.git
+   cd stress-visualization
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Run Development Server**
+   ```bash
+   npm start
+   ```
+
+## 📦 Dependencies
+
+- React
+- Leaflet
+- heatmap.js
+- GeoTIFF.js
+- Web Workers API
+
+## 🔍 Usage
+
+1. **Loading Data**
+   ```javascript
+   // Load stress data
+   const data = await loadStressData('sample_data/stress_sample.json');
+   ```
+
+2. **Configuring Visualization**
+   ```javascript
+   // Update heatmap settings
+   const heatmapConfig = {
+     radius: 12,
+     blur: 8,
+     maxZoom: 20
+   };
+   ```
+
+3. **Accessing Statistics**
+   - Use StressOverview component
+   - Monitor high-stress areas
+   - Track stress patterns
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+
+## 🔮 Future Enhancements
+
+1. Time-series visualization
+2. Advanced filtering options
+3. Export capabilities
+4. Custom threshold settings
+5. Additional data formats support
+
+## 🐛 Troubleshooting
+
+Common issues and solutions:
+
+1. **Map Not Rendering**
+   - Check container dimensions
+   - Verify coordinate values
+   - Confirm data format
+
+2. **Performance Issues**
+   - Adjust batch size
+   - Optimize data processing
+   - Check memory usage
+
+3. **Data Loading Errors**
+   - Validate file paths
+   - Check data format
+   - Verify network connectivity
+
+## 📞 Support
+
+For support, please open an issue in the repository or contact the development team.

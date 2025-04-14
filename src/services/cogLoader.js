@@ -10,39 +10,31 @@ class COGLoader {
 
   async initialize(url) {
     try {
-      // Fetch headers first to check if server supports range requests
-      const headResponse = await fetch(url, { method: 'HEAD' });
-      const acceptRanges = headResponse.headers.get('Accept-Ranges');
-      const contentLength = headResponse.headers.get('Content-Length');
-
-      if (acceptRanges !== 'bytes') {
-        console.warn('Server does not support range requests. COG optimizations will be limited.');
-        // Continue with full file fetch when range requests aren't supported
-        return this.initializeWithFullFile(url);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch GeoTIFF: ${response.statusText}`);
       }
-
-      // Use range requests when supported
-      const initialResponse = await fetch(url, {
-        headers: { Range: 'bytes=0-32768' } // Request first 32KB for header info
-      });
-      if (!initialResponse.ok && initialResponse.status !== 206) {
-        throw new Error(`Failed to fetch GeoTIFF: ${initialResponse.statusText}`);
-      }
-
-      const arrayBuffer = await initialResponse.arrayBuffer();
+      
+      const arrayBuffer = await response.arrayBuffer();
       this.tiff = await fromArrayBuffer(arrayBuffer);
       this.image = await this.tiff.getImage();
       this.metadata = this.image.getFileDirectory();
-
-      // Get available overviews
-      const imageCount = await this.tiff.getImageCount();
-      for (let i = 1; i < imageCount; i++) {
-        this.overviews.push(await this.tiff.getImage(i));
+      
+      // Validate required metadata
+      if (!this.metadata.ModelTiepoint || !this.metadata.ModelPixelScale) {
+        throw new Error('Invalid GeoTIFF: Missing required georeference metadata');
       }
-
+      
+      // Get overviews for optimized loading
+      this.overviews = await Promise.all(
+        Array.from({ length: this.tiff.getImageCount() - 1 }, (_, i) => 
+          this.tiff.getImage(i + 1)
+        )
+      );
+      
       return this.getBounds();
     } catch (error) {
-      console.error('Error initializing COG:', error);
+      console.error('Error initializing COGLoader:', error);
       throw error;
     }
   }
@@ -118,19 +110,39 @@ class COGLoader {
   }
 
   selectOptimalOverview(targetWidth, targetHeight) {
-    const originalResolution = this.image.getWidth() / targetWidth;
-    let optimalImage = this.image;
-    let optimalResolution = originalResolution;
-
-    for (const overview of this.overviews) {
-      const overviewResolution = overview.getWidth() / targetWidth;
-      if (Math.abs(overviewResolution - 1) < Math.abs(optimalResolution - 1)) {
-        optimalImage = overview;
-        optimalResolution = overviewResolution;
-      }
+    if (!this.image) {
+      throw new Error('GeoTIFF not initialized');
     }
 
-    return optimalImage;
+    const sourceWidth = this.image.getWidth();
+    const sourceHeight = this.image.getHeight();
+    
+    // If target size is larger than source, use original image
+    if (targetWidth >= sourceWidth || targetHeight >= sourceHeight) {
+      return this.image;
+    }
+    
+    // Find the overview with resolution closest to target
+    const targetResolution = Math.max(
+      sourceWidth / targetWidth,
+      sourceHeight / targetHeight
+    );
+    
+    let bestOverview = this.image;
+    let bestResolutionDiff = Infinity;
+    
+    for (const overview of this.overviews) {
+      const overviewWidth = overview.getWidth();
+      const resolution = sourceWidth / overviewWidth;
+      const resolutionDiff = Math.abs(resolution - targetResolution);
+      
+      if (resolutionDiff < bestResolutionDiff) {
+        bestResolutionDiff = resolutionDiff;
+        bestOverview = overview;
+      }
+    }
+    
+    return bestOverview;
   }
 
   calculateWindow(bounds, image) {
@@ -155,29 +167,26 @@ class COGLoader {
   }
 
   normalizeRasters(rasters) {
-    if (!rasters || !Array.isArray(rasters)) {
-      throw new Error('Invalid raster data format');
+    if (!Array.isArray(rasters) || rasters.length === 0) {
+      throw new Error('Invalid raster data: Empty or not an array');
     }
 
-    const formattedValues = [];
-    const bandCount = Array.isArray(rasters[0]) ? rasters.length : 1;
-
-    for (let i = 0; i < bandCount; i++) {
-      const band = Array.isArray(rasters[0]) ? rasters[i] : rasters;
-      const bandArray = Array.from(band);
-      
-      if (bandArray.length > 0) {
-        // Normalize values to 0-255 range
-        const min = Math.min(...bandArray);
-        const max = Math.max(...bandArray);
-        const normalizedBand = bandArray.map(val => 
-          Math.floor(((val - min) / (max - min)) * 255)
-        );
-        formattedValues.push(normalizedBand);
+    // Ensure we have valid numeric data
+    const validRasters = rasters.map(band => {
+      if (!band || !band.length) {
+        throw new Error('Invalid raster band: Empty or undefined');
       }
-    }
+      
+      return Array.from(band).map(value => {
+        // Handle NaN, Infinity, and null values
+        if (!Number.isFinite(value)) {
+          return 0; // or another appropriate default value
+        }
+        return value;
+      });
+    });
 
-    return formattedValues;
+    return validRasters;
   }
 }
 
