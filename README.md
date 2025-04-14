@@ -102,35 +102,6 @@ const GRID_CELL_SIZE = 20;     // Grid resolution in cm
    - Memory leak prevention
    - Efficient data structure updates
 
-## 🎯 Key Features Explained
-
-### 1. Stress Visualization
-
-- **Color Gradient**
-  - Green (0.0): Low stress
-  - Yellow (0.4): Moderate stress
-  - Red (0.7+): High stress
-
-- **Marker System**
-  ```javascript
-  const MARKER_CONFIG = {
-    radius: 2,
-    color: '#ff4444',
-    fillOpacity: 0.6
-  };
-  ```
-
-### 2. Data Processing
-
-- **Batch Processing**
-  - 50 markers per batch
-  - Progressive loading
-  - Smooth UI updates
-
-- **Error Handling**
-  - Validates data integrity
-  - Provides fallback options
-  - Maintains app stability
 
 ## 🔧 Setup and Installation
 
